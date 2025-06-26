@@ -201,4 +201,72 @@
     *   它只提供了使用普通、受限客户端 (`anon` key) 的标准流程，这足以应对绝大部分 Web 应用的需求（注册、登录、读写受保护的数据等）。
     *   **何时会用到它？** 当你需要添加特殊功能，且这些功能必须绕过行级安全策略(RLS)时，你才会修改代码（很可能是在 `lib/supabase/server.ts` 中新增一个函数），并调用 `SUPABASE_SERVICE_ROLE_KEY` 来创建一个具有最高权限的"服务级客户端"。例如：
         *   开发一个后台管理仪表盘，需要一次性读取所有用户的列表。
-        *   编写一个 API 路由，用于执行某些关键的、不受用户权限限制的数据清理或迁移任务。 
+        *   编写一个 API 路由，用于执行某些关键的、不受用户权限限制的数据清理或迁移任务。
+
+# 项目配置文档
+
+## 环境变量说明
+
+### Supabase 配置
+- `NEXT_PUBLIC_SUPABASE_URL`：项目的 API 地址，可在客户端使用
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`：匿名密钥，受RLS限制，可以公开
+- `SUPABASE_SERVICE_ROLE_KEY`：服务端超级管理员密钥，绕过RLS，高度机密
+
+**环境变量文件说明：**
+- `.env`：包含在版本控制中的公共配置
+- `.env.local`：本地环境变量，不会被Git提交，**应该存放敏感信息**
+
+**安全注意事项：**
+1. `NEXT_PUBLIC_*` 前缀的变量会被打包到客户端代码中，不要放敏感信息
+2. `SUPABASE_SERVICE_ROLE_KEY` 拥有数据库的完全访问权限，必须保密
+3. 生产环境中要使用真实的、强随机的密钥
+
+### Astria.ai 配置 (新增)
+
+在 `.env.local` 文件中添加以下配置：
+
+```bash
+# Astria.ai API 配置
+ASTRIA_API_KEY=your_astria_api_key_here
+ASTRIA_TUNE_ID=1504944
+```
+
+**配置说明：**
+- `ASTRIA_API_KEY`：您的 Astria.ai API 密钥
+  - 获取方式：登录 [Astria.ai](https://www.astria.ai/) → API Settings
+  - 安全等级：高度机密，仅用于服务端
+- `ASTRIA_TUNE_ID`：模型 ID（可选，默认 1504944）
+  - 默认使用 Flux1.dev 基础模型 (ID: 1504944)
+  - 如果有自定义训练的模型，请使用对应的 tune ID
+
+**功能特性：**
+- ✅ 支持生成 1 张高质量图像
+- ✅ 支持 Flux 和 Stable Diffusion 模型
+- ✅ 实时轮询获取生成结果  
+- ✅ 骨架屏加载效果
+- ✅ 错误处理和重试机制
+- ✅ 图像下载功能
+
+**使用示例：**
+1. 在输入框中描述想要生成的图像
+2. 点击"生成图像"按钮
+3. 系统会显示骨架屏加载效果
+4. 生成完成后展示图像
+5. 可以下载或清空图像历史
+
+**故障排除：**
+- 如果遇到 "Couldn't find Tune with 'id'=1" 错误：
+  1. 确保在 `.env.local` 中设置了有效的 `ASTRIA_API_KEY`
+  2. 系统现在默认使用 Flux1.dev 模型 (ID: 1504944)
+  3. 可以在环境变量中设置 `ASTRIA_TUNE_ID=1504944` 或使用自定义 tune ID
+
+**技术实现：**
+- API 路由：`/api/generate-image` (POST/GET)
+- 自定义 Hook：`useImageGeneration`
+- 轮询机制：每 3 秒检查生成状态
+- 超时设置：3 分钟后停止轮询
+
+**错误处理：**
+- API 密钥验证失败：显示配置错误提示
+- 生成失败：显示具体错误信息
+- 网络超时：自动重试机制 
